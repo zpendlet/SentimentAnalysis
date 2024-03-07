@@ -1,4 +1,4 @@
-# Sentiment Analysis on Twitter Data - 
+# Sentiment Analysis on Twitter Data 
 
 ## Description
 
