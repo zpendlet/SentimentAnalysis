@@ -6,8 +6,11 @@ from nltk.stem import SnowballStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import accuracy_score, classification_report
+import dask.dataframe as dd
 import certifi
 import os
+
+
 
 # Certificate verification so we can use NLTK
 os.environ['SSL_CERT_FILE'] = certifi.where()
@@ -16,9 +19,21 @@ os.environ['SSL_CERT_FILE'] = certifi.where()
 nltk.download("punkt")
 nltk.download("stopwords")
 
-# Loading my dataset
-trainingData = pd.read_csv('archive/train.csv')
-testingData = pd.read_csv('archive/test_data.csv')
+print("____________________________________________________________________________________")
+print("____________________________________________________________________________________")
+print("\n"
+      "               Sentiment Analysis on Twitter Data     \n"
+      "                   Twitter140 data from Kaggle. \n\n"
+      "            This process analyzes tweets for patterns in \n"
+      "            language to make assumptions about a statement's\n"
+      "            sentiment— either positive or negative.  \n")
+print("____________________________________________________________________________________")
+print("____________________________________________________________________________________")
+
+
+# Loading my dataset with Dask
+trainingData = dd.read_csv('archive/train_data.csv')
+testingData = dd.read_csv('archive/test_data.csv')
 
 def isDataClean(data):
     results = "Data is clean and ready to analyze."
@@ -29,10 +44,14 @@ def isDataClean(data):
 
     print(results)
 
-isDataClean(trainingData)
-isDataClean(testingData)
+isDataClean(trainingData.compute())
+isDataClean(testingData.compute())
 
-def preprocess(text):
+print("Preprocessing has begun.\n"
+      "Please allow serveral minutes for this part, "
+      "as the dataset contains \nover a million records.\n" 
+      "Preprocessing now...")
+def preprocessWithDask(text):
     # Check if the input is a string or bytes-like object
     if isinstance(text, str):
         tokens = word_tokenize(text)  # Tokenizations
@@ -53,13 +72,18 @@ def preprocess(text):
 
 
 #apply preprocessing
-trainingData["preprocessed_text"] = trainingData['sentence'].apply(preprocess)
-testingData["preprocessed_text"] = testingData['sentence'].apply(preprocess)
+trainingData["preprocessed_text"] = trainingData['sentence'].map(preprocessWithDask)
+testingData["preprocessed_text"] = testingData['sentence'].map(preprocessWithDask)
+
+# Compute Dask DFs to pandas for feature extraction
+trainingData = trainingData.compute()
+testingData = testingData.compute()
 
 print("Data has been preprocessed")
 
 # Method for extracting features
 def extract_features(data, max_features=5000):
+    print("Now extracting features...")
     tfidf_vectorizer = TfidfVectorizer(max_features=max_features)
     features = tfidf_vectorizer.fit_transform(data['preprocessed_text'])
     return features, tfidf_vectorizer
